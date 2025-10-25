@@ -1,0 +1,35 @@
+@import 'bootstrap';
+@import '@fortawesome/fontawesome-free/css/all.min.css';
+
+:root {
+    --bs-body-font-size: 0.9rem;
+}
+
+#app {
+    height: 100vh;
+}
+
+.grid-container {
+    display: grid;
+    grid-template-rows: 2fr 1fr;
+    grid-template-columns: 1fr 1fr;
+    height: 100vh;
+    gap: 0.5em;
+    padding: 0.5em;
+}
+
+.grid-item {
+    min-height: 0;
+
+    &.full-width {
+        grid-column: 1 / -1;
+    }
+}
+
+canvas {
+    max-height: 200px;
+    min-height: 50px;
+    image-rendering: pixelated;
+    object-fit: contain;
+    width: 100%;
+}
