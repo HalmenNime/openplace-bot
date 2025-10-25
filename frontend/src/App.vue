@@ -2,9 +2,10 @@
     import { sumBy } from 'lodash';
     import { onMounted, ref, useTemplateRef } from 'vue';
     import { SelectImage, ReadFile, Request, WriteSettings, ReadSettings } from '../wailsjs/go/main/App';
-    import { alert, generateId, imageDataFromBuffer, input, isUnsignedInteger, numberFormat, randomstring } from './helpers';
+    import { alert, generateId, imageDataFromBuffer, input, isUnsignedInteger, numberFormat, randomstring, sleep } from './helpers';
+    import { similarColor } from './palette';
 
-    const BASE_URL = 'https://place34.com/';
+    const BASE_URL = 'http://localhost/';
 
     const canvas = useTemplateRef('canvas');
     const settings = ref({
@@ -169,7 +170,100 @@
         }
     }
 
-    async function start() {}
+    async function start() {
+        running.value = true;
+        stopping.value = false;
+
+        while (!stopping.value) {
+            try {
+                await loop();
+            } catch (error) {
+                log('Failed to loop: ' + error.message);
+            }
+
+            if (stopping.value) break;
+
+            log(`Sleeping for ${settings.value.sleep} seconds...`);
+            for (let i = 0; i < settings.value.sleep; i++) {
+                if (stopping.value) break;
+                await sleep(1000);
+            }
+
+            if (stopping.value) break;
+        }
+
+        running.value = false;
+        stopping.value = false;
+        log('Stopped.');
+    }
+
+    function requestStop() {
+        log('Stopping...');
+        stopping.value = true;
+    }
+
+    async function loop() {
+        log('Generating pixel queue...');
+        const pixelQueue = [];
+        const tileMap = new Map();
+        for (let y = 0; y < canvas.value.height; y++) {
+            if (stopping.value) break;
+
+            for (let x = 0; x < canvas.value.width; x++) {
+                if (stopping.value) break;
+
+                const ctx = canvas.value.getContext('2d');
+                const imageData = ctx.getImageData(0, 0, canvas.value.width, canvas.value.height);
+                const imageColor = {
+                    r: imageData.data[y * canvas.value.width * 4 + x * 4 + 0],
+                    g: imageData.data[y * canvas.value.width * 4 + x * 4 + 1],
+                    b: imageData.data[y * canvas.value.width * 4 + x * 4 + 2],
+                    a: imageData.data[y * canvas.value.width * 4 + x * 4 + 3],
+                };
+                const imagePaletteColor = similarColor(imageColor, settings.value.usePremiumColors);
+                if (imagePaletteColor.idx === 0) continue;
+
+                const coords = {
+                    tx: Math.floor(parseInt(settings.value.tileX) + (parseInt(settings.value.pX) + x) / 1000),
+                    ty: Math.floor(parseInt(settings.value.tileY) + (parseInt(settings.value.pY) + y) / 1000),
+                    px: (parseInt(settings.value.pX) + x) % 1000,
+                    py: (parseInt(settings.value.pY) + y) % 1000,
+                };
+
+                const tileKey = `${coords.tx}-${coords.ty}`;
+                if (!tileMap.has(tileKey)) {
+                    log(`Getting tile ${coords.tx} ${coords.ty}...`);
+                    var response = await Request({ method: 'GET', url: url(`/files/s0/tiles/${coords.tx}/${coords.ty}.png`) });
+                    var raw = atob(response.data);
+                    if (response.status !== 200) {
+                        throw new Error(`Failed to get tile with status ${response.status}. Response: ${raw}`);
+                    }
+
+                    const buffer = Uint8Array.from(raw, (c) => c.charCodeAt(0));
+                    const imageData = await imageDataFromBuffer(buffer);
+                    tileMap.set(tileKey, imageData);
+                }
+
+                const tileData = tileMap.get(tileKey);
+                const existColor = {
+                    r: tileData.data[coords.py * tileData.width * 4 + coords.px * 4 + 0],
+                    g: tileData.data[coords.py * tileData.width * 4 + coords.px * 4 + 1],
+                    b: tileData.data[coords.py * tileData.width * 4 + coords.px * 4 + 2],
+                    a: tileData.data[coords.py * tileData.width * 4 + coords.px * 4 + 3],
+                };
+                const existPaletteColor = similarColor(existColor, true);
+                if (existPaletteColor.idx === imagePaletteColor.idx) continue;
+
+                pixelQueue.push({
+                    tx: coords.tx,
+                    ty: coords.ty,
+                    px: coords.px,
+                    py: coords.py,
+                    colorIdx: imagePaletteColor.idx,
+                });
+            }
+        }
+    }
 
     onMounted(async () => {
         loading.value = true;
@@ -266,11 +360,11 @@
                     </div>
 
                     <div class="form-group mt-auto">
-                        <button v-if="!running" type="button" class="btn btn-primary w-100" @click="start" :disabled="loading || running">
+                        <button v-if="!running" type="button" class="btn btn-primary w-100" :disabled="loading || running" @click="start">
                             <i class="fa-solid fa-play"></i>
                             Start
                         </button>
-                        <button v-else type="button" class="btn btn-danger w-100" @click="stop" :disabled="stopping">
+                        <button v-else type="button" class="btn btn-danger w-100" :disabled="stopping" @click="requestStop">
                             <i class="fa-solid fa-stop"></i>
                             Stop
                         </button>
@@ -316,7 +410,7 @@
 
         <div class="grid-item">
             <div class="border rounded p-2 h-100 overflow-y-auto">
-                <div v-for="log in logs.toReversed()" class="log-item">{{ log }}</div>
+                <div v-for="log in logs.toReversed()" :key="generateId()" class="log-item">{{ log }}</div>
             </div>
         </div>
     </div>
