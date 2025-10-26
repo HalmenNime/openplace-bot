@@ -110,7 +110,7 @@
         try {
             await Promise.all(promises);
         } catch (error) {
-            log(error.message);
+            log(error);
         }
 
         await writeSettings();
@@ -161,7 +161,7 @@
             await WriteSettings(JSON.stringify(settings.value));
             log('Settings saved.');
         } catch (error) {
-            log('Failed to save settings: ' + error.message);
+            log('Failed to save settings: ' + error);
         }
     }
 
@@ -172,7 +172,7 @@
 
             settings.value = JSON.parse(data);
         } catch (error) {
-            log('Failed to read settings: ' + error.message);
+            log('Failed to read settings: ' + error);
         }
     }
 
@@ -184,7 +184,7 @@
             try {
                 await loop();
             } catch (error) {
-                log('Failed to loop: ' + error.message);
+                log('Failed to loop: ' + error);
             }
 
             if (stopping.value) break;
@@ -346,7 +346,7 @@
 
                         await FetchMe(user);
                     } catch (error) {
-                        log(error.message);
+                        log(error);
                         continue;
                     }
                 }
@@ -374,9 +374,14 @@
 
         try {
             await readSettings();
+        } catch (error) {
+            log('Failed to read settings: ' + error);
+        }
+
+        try {
             await loadImage();
         } catch (error) {
-            log('Failed to read settings: ' + error.message);
+            log('Failed to load image: ' + error);
         }
 
         userTableRefreshTimer = setInterval(() => {
