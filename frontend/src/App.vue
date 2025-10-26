@@ -1,6 +1,6 @@
 <script setup>
-    import { sumBy } from 'lodash';
-    import { onMounted, ref, useTemplateRef } from 'vue';
+    import { chain, flatMap, sumBy } from 'lodash';
+    import { onMounted, onUnmounted, ref, useTemplateRef } from 'vue';
     import { SelectImage, ReadFile, Request, WriteSettings, ReadSettings } from '../wailsjs/go/main/App';
     import { alert, generateId, imageDataFromBuffer, input, isUnsignedInteger, numberFormat, randomstring, sleep } from './helpers';
     import { similarColor } from './palette';
@@ -26,6 +26,9 @@
     const loading = ref(false);
     const running = ref(false);
     const stopping = ref(false);
+    const userTableKey = ref(Date.now());
+
+    let userTableRefreshTimer = null;
 
     function log(message) {
         const text = `[${new Date().toLocaleTimeString()}] ${message}`;
@@ -134,6 +137,8 @@
         const raw = atob(response.data);
 
         if (response.status !== 200) {
+            user.me = null;
+            user.lastFetch = 0;
             throw new Error(`Failed to fetch me with status ${response.status}. Response: ${raw}`);
         }
 
@@ -202,6 +207,19 @@
         stopping.value = true;
     }
 
+    function getCharges(user) {
+        if (!user.me) return 0;
+
+        let charges = 0;
+        if (user.me.charges.count > user.me.charges.max) {
+            charges = Math.floor(user.me.charges.count);
+        } else {
+            charges = Math.floor(user.me.charges.count + (Date.now() - user.lastFetch) / user.me.charges.cooldownMs);
+        }
+
+        return charges;
+    }
+
     async function loop() {
         log('Generating pixel queue...');
         const pixelQueue = [];
@@ -263,6 +281,80 @@
                 });
             }
         }
+
+        const promises = [];
+        let userCount = settings.value.users.length;
+        for (let i = 0; i < settings.value.requestConcurrent; i++) {
+            const promise = new Promise(async (resolve) => {
+                while (userCount > 0 && pixelQueue.length > 0) {
+                    userCount -= 1;
+
+                    if (stopping.value) {
+                        resolve();
+                        return;
+                    }
+
+                    try {
+                        const userIdx = settings.value.users.length - userCount - 1;
+                        const user = settings.value.users[userIdx];
+                        if (!user) continue;
+                        if (!user.enabled) continue;
+
+                        if (!user.me) {
+                            log(`[${user.username}] Logging in...`);
+                            await Login(user);
+                            await FetchMe(user);
+                        }
+
+                        const charges = getCharges(user);
+                        if (charges <= 0) continue;
+
+                        const pixels = pixelQueue.splice(0, charges);
+                        const pixelsByTile = chain(pixels)
+                            .groupBy((pixel) => `${pixel.tx}-${pixel.ty}`)
+                            .values();
+                        for (const tilePixels of pixelsByTile) {
+                            var response = await Request({
+                                method: 'POST',
+                                url: url(`/s0/pixel/${tilePixels[0].tx}/${tilePixels[0].ty}`),
+                                data: JSON.stringify({
+                                    colors: flatMap(tilePixels, (pixel) => pixel.colorIdx),
+                                    coords: flatMap(tilePixels, (pixel) => [pixel.px, pixel.py]),
+                                    t: 'skip',
+                                }),
+                                cookie: user.cookie,
+                            });
+                            var raw = atob(response.data);
+
+                            if (response.status !== 200) {
+                                log(`[${user.username}] Failed to paint with status ${response.status}. Response: ${raw}`);
+                                break;
+                            }
+
+                            var data = JSON.parse(raw);
+                            if (!data.painted) {
+                                log(`[${user.username}] Failed to paint: ${raw}`);
+                                break;
+                            }
+
+                            log(`[${user.username}] Painted: ${data.painted}.`);
+                        }
+
+                        await FetchMe(user);
+                    } catch (error) {
+                        log(error.message);
+                        continue;
+                    }
+                }
+
+                resolve();
+            });
+            promises.push(promise);
+        }
+
+        await Promise.all(promises);
+
+        await writeSettings();
     }
 
     onMounted(async () => {
@@ -275,7 +367,15 @@
             log('Failed to read settings: ' + error.message);
         }
 
+        userTableRefreshTimer = setInterval(() => {
+            userTableKey.value = Date.now();
+        }, 10000);
+
         loading.value = false;
+    });
+
+    onUnmounted(() => {
+        clearInterval(userTableRefreshTimer);
     });
 </script>
 
@@ -373,7 +473,7 @@
             </div>
         </div>
 
-        <div class="grid-item">
+        <div class="grid-item" :key="userTableKey">
             <div class="border rounded p-2 h-100 overflow-y-auto">
                 <div class="d-flex align-items-center justify-content-between gap-2">
                     <button type="button" class="btn btn-sm btn-primary" @click="addUser" :disabled="loading">
@@ -381,7 +481,7 @@
                         Add
                     </button>
                     <div class="text-end">
-                        <div>Charges: {{ numberFormat(sumBy(settings.users, (x) => x.me?.charges?.count || 0)) }} / {{ numberFormat(sumBy(settings.users, (x) => x.me?.charges?.max || 0)) }}</div>
+                        <div>Charges: {{ numberFormat(sumBy(settings.users, (x) => getCharges(x))) }} / {{ numberFormat(sumBy(settings.users, (x) => x.me?.charges?.max || 0)) }}</div>
                         <div>Users: {{ numberFormat(settings.users.length) }}</div>
                     </div>
                 </div>
@@ -400,7 +500,7 @@
                                 <input type="checkbox" v-model="user.enabled" :disabled="loading" />
                             </td>
                             <td>{{ user.username }}</td>
-                            <td>{{ numberFormat(user.me?.charges?.count || 0) }}/{{ numberFormat(user.me?.charges?.max || 0) }}</td>
+                            <td>{{ numberFormat(getCharges(user)) }}/{{ numberFormat(user.me?.charges?.max || 0) }}</td>
                             <td>{{ numberFormat(user.me?.droplets || 0) }}</td>
                         </tr>
                     </tbody>
