@@ -419,6 +419,7 @@
                             if (charges <= 0) break;
 
                             const pixel = pixelQueue[pixelQueueIndex];
+                            pixelQueue[pixelQueueIndex] = undefined;
                             pixelQueueIndex += 1;
 
                             if (!pixel) continue;
@@ -426,8 +427,6 @@
 
                             pixels.push(pixel);
                             charges -= 1;
-
-                            pixelQueue[pixelQueueIndex] = undefined;
                         }
 
                         const pixelsByTile = chain(pixels)
