@@ -499,7 +499,7 @@
                         <div :key="userTableKey + '-users'">Users: {{ numberFormat(settings.users.length) }}</div>
                     </div>
                 </div>
-                <table class="table align-middle">
+                <table class="table align-middle mb-0">
                     <thead>
                         <tr>
                             <th>
