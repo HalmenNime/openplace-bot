@@ -3,7 +3,7 @@
     import { onMounted, onUnmounted, ref, useTemplateRef } from 'vue';
     import { SelectImage, ReadFile, Request, WriteSettings, ReadSettings } from '../wailsjs/go/main/App';
     import { alert, generateId, imageDataFromBuffer, input, isUnsignedInteger, numberFormat, randomstring, sleep } from './helpers';
-    import { similarColor, dithering, convert } from './palette';
+    import { similarColor, dithering, convert, palette } from './palette';
 
     const BASE_URL = 'http://localhost/';
 
@@ -20,6 +20,7 @@
         buyMaxCharges: 0,
         sleep: 60,
         requestConcurrent: 5,
+        buyMissingColors: false,
         users: [],
     });
     const logs = ref([]);
@@ -289,7 +290,31 @@
             }
         }
 
+        if (pixelQueue.length === 0) {
+            log('Pixel queue is empty.');
+            requestStop();
+            return;
+        }
+
         if (stopping.value) return;
+
+        const colorCountMap = new Map();
+        for (const pixel of pixelQueue) {
+            let count = colorCountMap.get(pixel.colorIdx) || 0;
+            colorCountMap.set(pixel.colorIdx, count + 1);
+        }
+
+        const lockedColors = Array.from(colorCountMap.entries())
+            .filter(([idx, count]) => count > 0)
+            .map(([idx, count]) => {
+                return {
+                    color: palette.find((c) => c.idx === idx),
+                    count,
+                };
+            })
+            .filter((item) => item.color.isPremium)
+            .toSorted((a, b) => b.count - a.count)
+            .map((item) => item.color);
 
         const promises = [];
         let userCount = settings.value.users.length;
@@ -298,10 +323,7 @@
                 while (userCount > 0 && pixelQueue.length > 0) {
                     userCount -= 1;
 
-                    if (stopping.value) {
-                        resolve();
-                        return;
-                    }
+                    if (stopping.value) break;
 
                     try {
                         const userIdx = settings.value.users.length - userCount - 1;
@@ -329,7 +351,7 @@
                             if (response.status !== 200) {
                                 log(`[${user.username}] Failed to purchase with status ${response.status}. Response: ${raw}`);
                             } else {
-                                log(`[${user.username}] Purchased changes.`);
+                                log(`[${user.username}] Purchased charges.`);
                                 await fetchMe(user);
                             }
                         }
@@ -353,13 +375,45 @@
                             }
                         }
 
+                        if (settings.value.buyMissingColors && user.me.droplets > 2000) {
+                            let shouldBuyColor = null;
+
+                            const fullLockedColors = lockedColors.filter((color) => settings.value.users.every((u) => !hasColor(u, color.idx)));
+                            if (fullLockedColors.length > 0) {
+                                shouldBuyColor = fullLockedColors[0];
+                            } else {
+                                const partialLockedColors = lockedColors.filter((color) => settings.value.users.some((u) => !hasColor(u, color.idx)));
+                                if (partialLockedColors.length > 0) {
+                                    shouldBuyColor = partialLockedColors[0];
+                                }
+                            }
+
+                            if (shouldBuyColor && !hasColor(user, shouldBuyColor.idx)) {
+                                log(`[${user.username}] Buying ${shouldBuyColor.name} color...`);
+                                var response = await Request({
+                                    method: 'POST',
+                                    url: url('/purchase'),
+                                    data: JSON.stringify({ product: { amount: 1, id: 100, variant: shouldBuyColor.idx } }),
+                                    cookie: user.cookie,
+                                });
+                                var raw = atob(response.data);
+
+                                if (response.status !== 200) {
+                                    log(`[${user.username}] Failed to purchase with status ${response.status}. Response: ${raw}`);
+                                } else {
+                                    log(`[${user.username}] Purchased ${shouldBuyColor.name} color.`);
+                                    await fetchMe(user);
+                                }
+                            }
+                        }
+
                         let charges = getCharges(user);
                         if (charges <= 0) continue;
 
                         const pixels = [];
                         let pixelQueueIndex = 0;
                         while (true) {
-                            if (stopping.value) return;
+                            if (stopping.value) break;
                             if (pixelQueueIndex >= pixelQueue.length) break;
                             if (charges <= 0) break;
 
@@ -535,6 +589,10 @@
         <div class="grid-item">
             <div class="border rounded p-2 h-100">
                 <div class="d-flex flex-column gap-2 h-100">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="buyMissingColors" v-model="settings.buyMissingColors" :disabled="loading" @change="writeSettings" />
+                        <label class="form-check-label" for="buyMissingColors">Buy missing colors</label>
+                    </div>
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" id="buyCharges" v-model="settings.buyCharges" :disabled="loading" @change="writeSettings" />
                         <label class="form-check-label" for="buyCharges">Buy charges</label>

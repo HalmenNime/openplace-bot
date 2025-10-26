@@ -12,6 +12,7 @@
     "@fortawesome/fontawesome-free": "^7.1.0",
     "bootstrap": "^5.3.8",
     "lodash": "^4.17.21",
+    "sass-embedded": "^1.93.2",
     "sweetalert2": "^11.26.3",
     "vue": "^3.2.37"
   },
