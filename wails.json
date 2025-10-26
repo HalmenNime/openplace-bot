@@ -1,5 +1,5 @@
 {
-  "version": "1.0.2",
+  "version": "1.0.3",
   "$schema": "https://wails.io/schemas/config.v2.json",
   "name": "openplace-bot",
   "outputfilename": "openplace-bot",
