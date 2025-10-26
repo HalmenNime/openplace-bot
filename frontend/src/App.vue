@@ -418,14 +418,15 @@
                             if (charges <= 0) break;
 
                             const pixel = pixelQueue[pixelQueueIndex];
-                            if (!hasColor(user, pixel.colorIdx)) {
-                                pixelQueueIndex += 1;
-                                continue;
-                            }
+                            pixelQueueIndex += 1;
 
-                            pixelQueue.splice(pixelQueueIndex, 1);
+                            if (!pixel) continue;
+                            if (!hasColor(user, pixel.colorIdx)) continue;
+
                             pixels.push(pixel);
                             charges -= 1;
+
+                            pixelQueue[pixelQueueIndex] = undefined;
                         }
 
                         const pixelsByTile = chain(pixels)
