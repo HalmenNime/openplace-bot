@@ -337,7 +337,7 @@
                             await fetchMe(user);
                         }
 
-                        if (settings.value.buyCharges && user.me.droplets > 500) {
+                        if (settings.value.buyCharges && user.me.charges.count < user.me.charges.max && user.me.droplets > 500) {
                             log(`[${user.username}] Buying charges...`);
                             var amount = Math.floor(Math.min(10, user.me.droplets / 500));
                             var response = await Request({
