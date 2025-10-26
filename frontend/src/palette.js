@@ -306,3 +306,97 @@ export function similarColor(color, usePaidColors = false) {
 
     return closestColor;
 }
+
+export function convert(imageData, usePaidColors = false) {
+    const data = imageData.data;
+    const width = imageData.width;
+    const height = imageData.height;
+    const newData = new Uint8ClampedArray(data);
+
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            const index = (y * width + x) * 4;
+            const currentColor = {
+                r: newData[index + 0],
+                g: newData[index + 1],
+                b: newData[index + 2],
+                a: newData[index + 3]
+            };
+            const closestColor = similarColor(currentColor, usePaidColors);
+            newData[index] = closestColor.r;
+            newData[index + 1] = closestColor.g;
+            newData[index + 2] = closestColor.b;
+            newData[index + 3] = closestColor.a;
+        }
+    }
+
+    return new ImageData(new Uint8ClampedArray(newData), width, height);
+}
+
+export function dithering(imageData, usePaidColors = false) {
+    // Ma trận Floyd-Steinberg dithering
+    // Phân tán lỗi từ pixel hiện tại sang các pixel lân cận
+    const floydSteinberg = [
+        [0, 0, 7 / 16],    // pixel bên phải
+        [-1, 1, 3 / 16],   // pixel dưới bên trái
+        [0, 1, 5 / 16],    // pixel dưới
+        [1, 1, 1 / 16]     // pixel dưới bên phải
+    ];
+
+    // Tạo bản sao của dữ liệu để tránh thay đổi dữ liệu gốc
+    const data = imageData.data;
+    const width = imageData.width;
+    const height = imageData.height;
+    const newData = new Uint8ClampedArray(data);
+
+    // Duyệt qua từng pixel
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            const index = (y * width + x) * 4;
+
+            // Lấy màu hiện tại
+            const currentColor = {
+                r: newData[index + 0],
+                g: newData[index + 1],
+                b: newData[index + 2],
+                a: newData[index + 3]
+            };
+
+            // Tìm màu gần nhất trong palette
+            const closestColor = similarColor(currentColor, usePaidColors);
+
+            // Tính lỗi màu sắc
+            const error = {
+                r: currentColor.r - closestColor.r,
+                g: currentColor.g - closestColor.g,
+                b: currentColor.b - closestColor.b
+            };
+
+            // Đặt màu mới cho pixel hiện tại
+            newData[index] = closestColor.r;
+            newData[index + 1] = closestColor.g;
+            newData[index + 2] = closestColor.b;
+            newData[index + 3] = closestColor.a;
+
+            // Phân tán lỗi sang các pixel lân cận
+            for (let i = 0; i < floydSteinberg.length; i++) {
+                const [dx, dy, factor] = floydSteinberg[i];
+                const newX = x + dx;
+                const newY = y + dy;
+
+                // Kiểm tra biên
+                if (newX >= 0 && newX < width && newY >= 0 && newY < height) {
+                    const neighborIndex = (newY * width + newX) * 4;
+
+                    // Cộng lỗi vào pixel lân cận
+                    newData[neighborIndex] = Math.max(0, Math.min(255, newData[neighborIndex] + error.r * factor));
+                    newData[neighborIndex + 1] = Math.max(0, Math.min(255, newData[neighborIndex + 1] + error.g * factor));
+                    newData[neighborIndex + 2] = Math.max(0, Math.min(255, newData[neighborIndex + 2] + error.b * factor));
+                }
+            }
+        }
+    }
+
+    // Tạo ImageData mới với dữ liệu đã được dithering
+    return new ImageData(newData, width, height);
+}

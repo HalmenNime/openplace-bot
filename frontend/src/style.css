@@ -27,7 +27,7 @@
 }
 
 canvas {
-    max-height: 200px;
+    max-height: 35vh;
     min-height: 50px;
     image-rendering: pixelated;
     object-fit: contain;

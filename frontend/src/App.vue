@@ -3,12 +3,11 @@
     import { onMounted, onUnmounted, ref, useTemplateRef } from 'vue';
     import { SelectImage, ReadFile, Request, WriteSettings, ReadSettings } from '../wailsjs/go/main/App';
     import { alert, generateId, imageDataFromBuffer, input, isUnsignedInteger, numberFormat, randomstring, sleep } from './helpers';
-    import { similarColor } from './palette';
+    import { similarColor, dithering, convert } from './palette';
 
     const BASE_URL = 'http://localhost/';
 
     const canvas = useTemplateRef('canvas');
-    const userTable = useTemplateRef('userTable');
     const settings = ref({
         tileX: null,
         tileY: null,
@@ -54,7 +53,13 @@
     async function loadImage() {
         const buffer = await ReadFile(settings.value.image);
         const bytes = Uint8Array.from(atob(buffer), (c) => c.charCodeAt(0));
-        const imageData = await imageDataFromBuffer(bytes);
+
+        let imageData = await imageDataFromBuffer(bytes);
+        if (settings.value.dithering) {
+            imageData = dithering(imageData, settings.value.usePremiumColors);
+        } else {
+            imageData = convert(imageData, settings.value.usePremiumColors);
+        }
 
         canvas.value.width = imageData.width;
         canvas.value.height = imageData.height;
@@ -407,6 +412,16 @@
         await writeSettings();
     }
 
+    async function doDithering() {
+        await loadImage();
+        await writeSettings();
+    }
+
+    async function doTogglePremiumColors() {
+        await loadImage();
+        await writeSettings();
+    }
+
     onMounted(async () => {
         loading.value = true;
 
@@ -481,11 +496,11 @@
                     <div class="col-10">
                         <div class="d-flex flex-column">
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="dithering" v-model="settings.dithering" :disabled="loading" @change="writeSettings" />
+                                <input class="form-check-input" type="checkbox" id="dithering" v-model="settings.dithering" :disabled="loading" @change="doDithering" />
                                 <label class="form-check-label" for="dithering">Dithering</label>
                             </div>
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="usePremiumColors" v-model="settings.usePremiumColors" :disabled="loading" @change="writeSettings" />
+                                <input class="form-check-input" type="checkbox" id="usePremiumColors" v-model="settings.usePremiumColors" :disabled="loading" @change="doTogglePremiumColors" />
                                 <label class="form-check-label" for="usePremiumColors">Use premium colors</label>
                             </div>
                         </div>
