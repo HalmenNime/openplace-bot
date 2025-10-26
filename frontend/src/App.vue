@@ -73,7 +73,7 @@
         let amount = await input('Enter the amount of users to add');
         if (!amount) return;
         if (!isUnsignedInteger(amount)) {
-            alert('Invalid amount');
+            alert('Invalid amount', undefined, 'error');
             return;
         }
 
@@ -503,17 +503,29 @@
         try {
             await OpenURL(url);
         } catch (error) {
-            alert(error);
+            alert(error, undefined, 'error');
         }
+    }
+
+    async function readInstanceBaseUrl() {
+        const buffer = await ReadFile('instance.txt');
+        const raw = atob(buffer);
+        const baseUrl = raw.trim();
+
+        const url = new URL(baseUrl);
+        if (url.host === 'openplace.live') {
+            alert('Botting is not allowed on openplace.live.', undefined, 'error');
+            throw new Error('Botting is not allowed on openplace.live.');
+        }
+
+        return baseUrl;
     }
 
     onMounted(async () => {
         loading.value = true;
 
         try {
-            const buffer = await ReadFile('instance.txt');
-            const raw = atob(buffer);
-            baseUrl.value = raw.trim();
+            baseUrl.value = await readInstanceBaseUrl();
         } catch (error) {
             console.error(error);
             baseUrl.value = 'http://localhost';
