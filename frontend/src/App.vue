@@ -97,8 +97,8 @@
                             password: password,
                             enabled: true,
                         };
-                        await Login(user);
-                        await FetchMe(user);
+                        await login(user);
+                        await fetchMe(user);
                         settings.value.users.push(user);
                         log(`User ${username} added.`);
                     } catch (error) {
@@ -123,7 +123,7 @@
         loading.value = false;
     }
 
-    async function Login(user) {
+    async function login(user) {
         const response = await Request({
             method: 'POST',
             url: url('/login'),
@@ -138,7 +138,7 @@
         user.cookie = (response.headers['Set-Cookie'] || []).map((x) => x.replace(/^(\w+=.*?)(;.*?)*$/, '$1')).join(';');
     }
 
-    async function FetchMe(user) {
+    async function fetchMe(user) {
         const response = await Request({ method: 'GET', url: url('/me'), cookie: user.cookie });
         const raw = atob(response.data);
 
@@ -311,8 +311,8 @@
 
                         if (!user.me) {
                             log(`[${user.username}] Logging in...`);
-                            await Login(user);
-                            await FetchMe(user);
+                            await login(user);
+                            await fetchMe(user);
                         }
 
                         if (settings.value.buyCharges && user.me.droplets > 500) {
@@ -330,7 +330,7 @@
                                 log(`[${user.username}] Failed to purchase with status ${response.status}. Response: ${raw}`);
                             } else {
                                 log(`[${user.username}] Purchased changes.`);
-                                await FetchMe(user);
+                                await fetchMe(user);
                             }
                         }
 
@@ -349,14 +349,31 @@
                                 log(`[${user.username}] Failed to purchase with status ${response.status}. Response: ${raw}`);
                             } else {
                                 log(`[${user.username}] Purchased max charges.`);
-                                await FetchMe(user);
+                                await fetchMe(user);
                             }
                         }
 
-                        const charges = getCharges(user);
+                        let charges = getCharges(user);
                         if (charges <= 0) continue;
 
-                        const pixels = pixelQueue.splice(0, charges);
+                        const pixels = [];
+                        let pixelQueueIndex = 0;
+                        while (true) {
+                            if (stopping.value) return;
+                            if (pixelQueueIndex >= pixelQueue.length) break;
+                            if (charges <= 0) break;
+
+                            const pixel = pixelQueue[pixelQueueIndex];
+                            if (!hasColor(user, pixel.colorIdx)) {
+                                pixelQueueIndex += 1;
+                                continue;
+                            }
+
+                            pixelQueue.splice(pixelQueueIndex, 1);
+                            pixels.push(pixel);
+                            charges -= 1;
+                        }
+
                         const pixelsByTile = chain(pixels)
                             .groupBy((pixel) => `${pixel.tx}-${pixel.ty}`)
                             .values();
@@ -387,7 +404,7 @@
                             log(`[${user.username}] Painted: ${data.painted}.`);
                         }
 
-                        await FetchMe(user);
+                        await fetchMe(user);
                     } catch (error) {
                         log(error);
                         continue;
@@ -420,6 +437,12 @@
     async function doTogglePremiumColors() {
         await loadImage();
         await writeSettings();
+    }
+
+    function hasColor(user, index) {
+        if (!user.me) return false;
+        if (index < 32) return true;
+        return (user.me.extraColorsBitmap & (1 << (index - 32))) !== 0;
     }
 
     onMounted(async () => {
