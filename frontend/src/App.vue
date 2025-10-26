@@ -318,6 +318,7 @@
 
         const promises = [];
         let userCount = settings.value.users.length;
+        let pixelRemaining = pixelQueue.length;
         for (let i = 0; i < settings.value.requestConcurrent; i++) {
             const promise = new Promise(async (resolve) => {
                 while (userCount > 0 && pixelQueue.length > 0) {
@@ -338,20 +339,23 @@
                         }
 
                         if (settings.value.buyCharges && user.me.charges.count < user.me.charges.max && user.me.droplets > 500) {
-                            var amount = Math.floor(Math.min(10, user.me.droplets / 500));
-                            var response = await Request({
-                                method: 'POST',
-                                url: url('/purchase'),
-                                data: JSON.stringify({ product: { amount, id: 80 } }),
-                                cookie: user.cookie,
-                            });
-                            var raw = atob(response.data);
+                            var currentCharges = getCharges(user);
+                            var amount = Math.min(10, Math.floor(user.me.droplets / 500), Math.ceil((pixelRemaining - currentCharges) / 30));
+                            if (amount > 0) {
+                                var response = await Request({
+                                    method: 'POST',
+                                    url: url('/purchase'),
+                                    data: JSON.stringify({ product: { amount, id: 80 } }),
+                                    cookie: user.cookie,
+                                });
+                                var raw = atob(response.data);
 
-                            if (response.status !== 200) {
-                                log(`[${user.username}] Failed to purchase charges with status ${response.status}. Response: ${raw}`);
-                            } else {
-                                log(`[${user.username}] Purchased charges.`);
-                                await fetchMe(user);
+                                if (response.status !== 200) {
+                                    log(`[${user.username}] Failed to purchase charges with status ${response.status}. Response: ${raw}`);
+                                } else {
+                                    log(`[${user.username}] Purchased charges.`);
+                                    await fetchMe(user);
+                                }
                             }
                         }
 
@@ -454,6 +458,7 @@
                             }
 
                             log(`[${user.username}] Painted: ${data.painted}.`);
+                            pixelRemaining -= data.painted;
                         }
 
                         await fetchMe(user);
