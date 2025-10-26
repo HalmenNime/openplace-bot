@@ -1,11 +1,9 @@
 <script setup>
     import { chain, flatMap, sumBy } from 'lodash';
     import { onMounted, onUnmounted, ref, useTemplateRef } from 'vue';
-    import { SelectImage, ReadFile, Request, WriteSettings, ReadSettings } from '../wailsjs/go/main/App';
+    import { SelectImage, ReadFile, Request, WriteSettings, ReadSettings, OpenURL } from '../wailsjs/go/main/App';
     import { alert, generateId, imageDataFromBuffer, input, isUnsignedInteger, numberFormat, randomstring, sleep } from './helpers';
     import { similarColor, dithering, convert, palette } from './palette';
-
-    const BASE_URL = 'http://localhost/';
 
     const canvas = useTemplateRef('canvas');
     const settings = ref({
@@ -28,6 +26,7 @@
     const running = ref(false);
     const stopping = ref(false);
     const userTableKey = ref(Date.now());
+    const baseUrl = ref(null);
 
     let userTableRefreshTimer = null;
 
@@ -38,7 +37,8 @@
     }
 
     function url(path) {
-        return BASE_URL.replace(/\/$/, '') + '/' + path.replace(/^\//, '');
+        if (!baseUrl.value) throw new Error('Base URL is not set.');
+        return baseUrl.value.replace(/\/$/, '') + '/' + path.replace(/^\//, '');
     }
 
     async function selectImage() {
@@ -499,8 +499,25 @@
         return (user.me.extraColorsBitmap & (1 << (index - 32))) !== 0;
     }
 
+    async function openURL(url) {
+        try {
+            await OpenURL(url);
+        } catch (error) {
+            alert(error);
+        }
+    }
+
     onMounted(async () => {
         loading.value = true;
+
+        try {
+            const buffer = await ReadFile('instance.txt');
+            const raw = atob(buffer);
+            baseUrl.value = raw.trim();
+        } catch (error) {
+            console.error(error);
+            baseUrl.value = 'http://localhost';
+        }
 
         try {
             await readSettings();
@@ -621,6 +638,13 @@
                     </div>
 
                     <div class="form-group mt-auto">
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <i class="fa-solid fa-earth-asia"></i>
+                            <div>
+                                Instance: <a href="#" @click="openURL(baseUrl)">{{ baseUrl }}</a>
+                            </div>
+                        </div>
+
                         <button v-if="!running" type="button" class="btn btn-primary w-100" :disabled="loading || running" @click="start">
                             <i class="fa-solid fa-play"></i>
                             Start
