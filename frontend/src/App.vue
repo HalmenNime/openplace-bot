@@ -310,6 +310,44 @@
                             await FetchMe(user);
                         }
 
+                        if (settings.value.buyCharges && user.me.droplets > 500) {
+                            log(`[${user.username}] Buying charges...`);
+                            var amount = Math.floor(Math.min(10, user.me.droplets / 500));
+                            var response = await Request({
+                                method: 'POST',
+                                url: url('/purchase'),
+                                data: JSON.stringify({ product: { amount, id: 80 } }),
+                                cookie: user.cookie,
+                            });
+                            var raw = atob(response.data);
+
+                            if (response.status !== 200) {
+                                log(`[${user.username}] Failed to purchase with status ${response.status}. Response: ${raw}`);
+                            } else {
+                                log(`[${user.username}] Purchased changes.`);
+                                await FetchMe(user);
+                            }
+                        }
+
+                        if (user.me.charges.max < settings.value.buyMaxCharges && user.me.droplets > 500) {
+                            log(`[${user.username}] Buying max charges...`);
+                            var amount = Math.floor(Math.min(10, user.me.droplets / 500));
+                            var response = await Request({
+                                method: 'POST',
+                                url: url('/purchase'),
+                                data: JSON.stringify({ product: { amount, id: 70 } }),
+                                cookie: user.cookie,
+                            });
+                            var raw = atob(response.data);
+
+                            if (response.status !== 200) {
+                                log(`[${user.username}] Failed to purchase with status ${response.status}. Response: ${raw}`);
+                            } else {
+                                log(`[${user.username}] Purchased max charges.`);
+                                await FetchMe(user);
+                            }
+                        }
+
                         const charges = getCharges(user);
                         if (charges <= 0) continue;
 
@@ -405,25 +443,25 @@
                         <label for="tileX">Tile X</label>
                     </div>
                     <div class="col-4">
-                        <input type="text" v-model="settings.tileX" id="tileX" class="form-control" placeholder="Tile X" :disabled="loading || running" @change="writeSettings" />
+                        <input type="text" v-model.number="settings.tileX" id="tileX" class="form-control" placeholder="Tile X" :disabled="loading || running" @change="writeSettings" />
                     </div>
                     <div class="col-2 text-end">
                         <label for="tileY">Tile Y</label>
                     </div>
                     <div class="col-4">
-                        <input type="text" v-model="settings.tileY" id="tileY" class="form-control" placeholder="Tile Y" :disabled="loading || running" @change="writeSettings" />
+                        <input type="text" v-model.number="settings.tileY" id="tileY" class="form-control" placeholder="Tile Y" :disabled="loading || running" @change="writeSettings" />
                     </div>
                     <div class="col-2 text-end">
                         <label for="pX">P X</label>
                     </div>
                     <div class="col-4">
-                        <input type="text" v-model="settings.pX" id="pX" class="form-control" placeholder="P X" :disabled="loading || running" @change="writeSettings" />
+                        <input type="text" v-model.number="settings.pX" id="pX" class="form-control" placeholder="P X" :disabled="loading || running" @change="writeSettings" />
                     </div>
                     <div class="col-2 text-end">
                         <label for="pY">P Y</label>
                     </div>
                     <div class="col-4">
-                        <input type="text" v-model="settings.pY" id="pY" class="form-control" placeholder="P Y" :disabled="loading || running" @change="writeSettings" />
+                        <input type="text" v-model.number="settings.pY" id="pY" class="form-control" placeholder="P Y" :disabled="loading || running" @change="writeSettings" />
                     </div>
                     <div class="col-2 text-end align-self-start">
                         <label for="tileX">Image</label>
@@ -465,15 +503,25 @@
                     </div>
                     <div class="form-group">
                         <label for="buyMaxCharges" class="form-label mb-0">Buy max charges to reach: {{ numberFormat(settings.buyMaxCharges) }}</label>
-                        <input type="range" class="form-range" min="0" max="1000" step="10" id="buyMaxCharges" v-model="settings.buyMaxCharges" :disabled="loading" @change="writeSettings" />
+                        <input type="range" class="form-range" min="0" max="1000" step="10" id="buyMaxCharges" v-model.number="settings.buyMaxCharges" :disabled="loading" @change="writeSettings" />
                     </div>
                     <div class="form-group">
                         <label for="sleep" class="form-label mb-0">Sleep between loops: {{ numberFormat(settings.sleep) }} seconds</label>
-                        <input type="range" class="form-range" min="0" max="1000" step="10" id="sleep" v-model="settings.sleep" :disabled="loading" @change="writeSettings" />
+                        <input type="range" class="form-range" min="0" max="1000" step="10" id="sleep" v-model.number="settings.sleep" :disabled="loading" @change="writeSettings" />
                     </div>
                     <div class="form-group">
                         <label for="requestConcurrent" class="form-label mb-0">Request concurrent: {{ numberFormat(settings.requestConcurrent) }}</label>
-                        <input type="range" class="form-range" min="1" max="100" step="1" id="requestConcurrent" v-model="settings.requestConcurrent" :disabled="loading" @change="writeSettings" />
+                        <input
+                            type="range"
+                            class="form-range"
+                            min="1"
+                            max="10"
+                            step="1"
+                            id="requestConcurrent"
+                            v-model.number="settings.requestConcurrent"
+                            :disabled="loading"
+                            @change="writeSettings"
+                        />
                     </div>
 
                     <div class="form-group mt-auto">
