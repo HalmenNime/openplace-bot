@@ -338,7 +338,6 @@
                         }
 
                         if (settings.value.buyCharges && user.me.charges.count < user.me.charges.max && user.me.droplets > 500) {
-                            log(`[${user.username}] Buying charges...`);
                             var amount = Math.floor(Math.min(10, user.me.droplets / 500));
                             var response = await Request({
                                 method: 'POST',
@@ -349,7 +348,7 @@
                             var raw = atob(response.data);
 
                             if (response.status !== 200) {
-                                log(`[${user.username}] Failed to purchase with status ${response.status}. Response: ${raw}`);
+                                log(`[${user.username}] Failed to purchase charges with status ${response.status}. Response: ${raw}`);
                             } else {
                                 log(`[${user.username}] Purchased charges.`);
                                 await fetchMe(user);
@@ -357,7 +356,6 @@
                         }
 
                         if (user.me.charges.max < settings.value.buyMaxCharges && user.me.droplets > 500) {
-                            log(`[${user.username}] Buying max charges...`);
                             var amount = Math.floor(Math.min(10, user.me.droplets / 500));
                             var response = await Request({
                                 method: 'POST',
@@ -368,7 +366,7 @@
                             var raw = atob(response.data);
 
                             if (response.status !== 200) {
-                                log(`[${user.username}] Failed to purchase with status ${response.status}. Response: ${raw}`);
+                                log(`[${user.username}] Failed to purchase max charges with status ${response.status}. Response: ${raw}`);
                             } else {
                                 log(`[${user.username}] Purchased max charges.`);
                                 await fetchMe(user);
@@ -389,7 +387,6 @@
                             }
 
                             if (shouldBuyColor && !hasColor(user, shouldBuyColor.idx)) {
-                                log(`[${user.username}] Buying ${shouldBuyColor.name} color...`);
                                 var response = await Request({
                                     method: 'POST',
                                     url: url('/purchase'),
@@ -399,7 +396,7 @@
                                 var raw = atob(response.data);
 
                                 if (response.status !== 200) {
-                                    log(`[${user.username}] Failed to purchase with status ${response.status}. Response: ${raw}`);
+                                    log(`[${user.username}] Failed to purchase ${shouldBuyColor.name} color with status ${response.status}. Response: ${raw}`);
                                 } else {
                                     log(`[${user.username}] Purchased ${shouldBuyColor.name} color.`);
                                     await fetchMe(user);
