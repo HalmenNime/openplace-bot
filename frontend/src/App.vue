@@ -206,14 +206,14 @@
         log('Generating pixel queue...');
         const pixelQueue = [];
         const tileMap = new Map();
+        const ctx = canvas.value.getContext('2d');
+        const imageData = ctx.getImageData(0, 0, canvas.value.width, canvas.value.height);
         for (let y = 0; y < canvas.value.height; y++) {
             if (stopping.value) break;
 
             for (let x = 0; x < canvas.value.width; x++) {
                 if (stopping.value) break;
 
-                const ctx = canvas.value.getContext('2d');
-                const imageData = ctx.getImageData(0, 0, canvas.value.width, canvas.value.height);
                 const imageColor = {
                     r: imageData.data[y * canvas.value.width * 4 + x * 4 + 0],
                     g: imageData.data[y * canvas.value.width * 4 + x * 4 + 1],
