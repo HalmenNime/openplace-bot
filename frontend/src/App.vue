@@ -8,6 +8,7 @@
     const BASE_URL = 'http://localhost/';
 
     const canvas = useTemplateRef('canvas');
+    const userTable = useTemplateRef('userTable');
     const settings = ref({
         tileX: null,
         tileY: null,
@@ -215,9 +216,10 @@
             charges = Math.floor(user.me.charges.count);
         } else {
             charges = Math.floor(user.me.charges.count + (Date.now() - user.lastFetch) / user.me.charges.cooldownMs);
+            if (charges > user.me.charges.max) charges = user.me.charges.max;
         }
 
-        return charges;
+        return Math.max(0, charges);
     }
 
     async function loop() {
@@ -281,6 +283,8 @@
                 });
             }
         }
+
+        if (stopping.value) return;
 
         const promises = [];
         let userCount = settings.value.users.length;
@@ -354,6 +358,14 @@
 
         await Promise.all(promises);
 
+        await writeSettings();
+    }
+
+    async function toggleAllUsers() {
+        const checked = settings.value.users.every((x) => x.enabled);
+        for (const user of settings.value.users) {
+            user.enabled = !checked;
+        }
         await writeSettings();
     }
 
@@ -473,7 +485,7 @@
             </div>
         </div>
 
-        <div class="grid-item" :key="userTableKey">
+        <div class="grid-item">
             <div class="border rounded p-2 h-100 overflow-y-auto">
                 <div class="d-flex align-items-center justify-content-between gap-2">
                     <button type="button" class="btn btn-sm btn-primary" @click="addUser" :disabled="loading">
@@ -481,23 +493,27 @@
                         Add
                     </button>
                     <div class="text-end">
-                        <div>Charges: {{ numberFormat(sumBy(settings.users, (x) => getCharges(x))) }} / {{ numberFormat(sumBy(settings.users, (x) => x.me?.charges?.max || 0)) }}</div>
-                        <div>Users: {{ numberFormat(settings.users.length) }}</div>
+                        <div :key="userTableKey + '-charges'">
+                            Charges: {{ numberFormat(sumBy(settings.users, (x) => getCharges(x))) }} / {{ numberFormat(sumBy(settings.users, (x) => x.me?.charges?.max || 0)) }}
+                        </div>
+                        <div :key="userTableKey + '-users'">Users: {{ numberFormat(settings.users.length) }}</div>
                     </div>
                 </div>
                 <table class="table align-middle">
                     <thead>
                         <tr>
-                            <th></th>
+                            <th>
+                                <input type="checkbox" class="form-check-input" :disabled="loading" :checked="settings.users.every((x) => x.enabled)" @change="toggleAllUsers" />
+                            </th>
                             <th>User</th>
                             <th>Charge</th>
                             <th>Droplets</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-for="user in settings.users" :key="user.id">
+                        <tr v-for="user in settings.users" :key="userTableKey + '-' + user.id">
                             <td>
-                                <input type="checkbox" v-model="user.enabled" :disabled="loading" />
+                                <input type="checkbox" v-model="user.enabled" class="form-check-input" :disabled="loading" />
                             </td>
                             <td>{{ user.username }}</td>
                             <td>{{ numberFormat(getCharges(user)) }}/{{ numberFormat(user.me?.charges?.max || 0) }}</td>
