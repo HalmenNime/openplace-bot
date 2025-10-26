@@ -507,7 +507,7 @@
                     <div class="col-10">
                         <div class="border rounded d-flex flex-column">
                             <canvas ref="canvas"></canvas>
-                            <button type="button" class="btn btn-sm btn-primary border-0 rounded-top-0" @click="selectImage" :disabled="loading">
+                            <button type="button" class="btn btn-sm btn-primary border-0 rounded-top-0" @click="selectImage" :disabled="loading || running">
                                 <i class="fa-solid fa-image"></i>
                                 Select image
                             </button>
