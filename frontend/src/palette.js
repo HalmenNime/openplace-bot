@@ -337,7 +337,7 @@ export function dithering(imageData, usePaidColors = false) {
     // Ma trận Floyd-Steinberg dithering
     // Phân tán lỗi từ pixel hiện tại sang các pixel lân cận
     const floydSteinberg = [
-        [0, 0, 7 / 16],    // pixel bên phải
+        [1, 0, 7 / 16],    // pixel bên phải
         [-1, 1, 3 / 16],   // pixel dưới bên trái
         [0, 1, 5 / 16],    // pixel dưới
         [1, 1, 1 / 16]     // pixel dưới bên phải
@@ -354,7 +354,7 @@ export function dithering(imageData, usePaidColors = false) {
         for (let x = 0; x < width; x++) {
             const index = (y * width + x) * 4;
 
-            // Lấy màu hiện tại
+            // Lấy màu hiện tại (bao gồm cả lỗi đã được phân tán từ các pixel trước)
             const currentColor = {
                 r: newData[index + 0],
                 g: newData[index + 1],
@@ -372,26 +372,32 @@ export function dithering(imageData, usePaidColors = false) {
                 b: currentColor.b - closestColor.b
             };
 
-            // Đặt màu mới cho pixel hiện tại
-            newData[index] = closestColor.r;
+            // Đặt màu palette cho pixel hiện tại
+            newData[index + 0] = closestColor.r;
             newData[index + 1] = closestColor.g;
             newData[index + 2] = closestColor.b;
             newData[index + 3] = closestColor.a;
 
-            // Phân tán lỗi sang các pixel lân cận
+            // Phân tán lỗi sang các pixel lân cận (chưa được xử lý)
             for (let i = 0; i < floydSteinberg.length; i++) {
                 const [dx, dy, factor] = floydSteinberg[i];
                 const newX = x + dx;
                 const newY = y + dy;
 
-                // Kiểm tra biên
+                // Chỉ phân tán lỗi sang các pixel chưa được xử lý
                 if (newX >= 0 && newX < width && newY >= 0 && newY < height) {
-                    const neighborIndex = (newY * width + newX) * 4;
+                    // Kiểm tra xem pixel này đã được xử lý chưa
+                    // (pixel ở dòng hiện tại và bên phải, hoặc ở dòng dưới)
+                    const isProcessed = (newY < y) || (newY === y && newX < x);
 
-                    // Cộng lỗi vào pixel lân cận
-                    newData[neighborIndex] = Math.max(0, Math.min(255, newData[neighborIndex] + error.r * factor));
-                    newData[neighborIndex + 1] = Math.max(0, Math.min(255, newData[neighborIndex + 1] + error.g * factor));
-                    newData[neighborIndex + 2] = Math.max(0, Math.min(255, newData[neighborIndex + 2] + error.b * factor));
+                    if (!isProcessed) {
+                        const neighborIndex = (newY * width + newX) * 4;
+
+                        // Cộng lỗi vào pixel lân cận
+                        newData[neighborIndex] = Math.max(0, Math.min(255, newData[neighborIndex] + error.r * factor));
+                        newData[neighborIndex + 1] = Math.max(0, Math.min(255, newData[neighborIndex + 1] + error.g * factor));
+                        newData[neighborIndex + 2] = Math.max(0, Math.min(255, newData[neighborIndex + 2] + error.b * factor));
+                    }
                 }
             }
         }
