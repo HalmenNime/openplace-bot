@@ -71,6 +71,7 @@
         ctx.putImageData(imageData, 0, 0);
 
         totalPixels.value = imageData.width * imageData.height;
+        remainingPixels.value = totalPixels.value;
     }
 
     async function addUser() {
