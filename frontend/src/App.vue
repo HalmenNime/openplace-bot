@@ -27,6 +27,8 @@
     const stopping = ref(false);
     const userTableKey = ref(Date.now());
     const baseUrl = ref(null);
+    const remainingPixels = ref(0);
+    const totalPixels = ref(0);
 
     let userTableRefreshTimer = null;
 
@@ -67,6 +69,8 @@
 
         const ctx = canvas.value.getContext('2d');
         ctx.putImageData(imageData, 0, 0);
+
+        totalPixels.value = imageData.width * imageData.height;
     }
 
     async function addUser() {
@@ -290,6 +294,8 @@
             }
         }
 
+        remainingPixels.value = pixelQueue.length;
+
         if (pixelQueue.length === 0) {
             log('Pixel queue is empty.');
             requestStop();
@@ -318,7 +324,6 @@
 
         const promises = [];
         let userCount = settings.value.users.length;
-        let pixelRemaining = pixelQueue.length;
         for (let i = 0; i < settings.value.requestConcurrent; i++) {
             const promise = new Promise(async (resolve) => {
                 while (userCount > 0 && pixelQueue.length > 0) {
@@ -340,7 +345,7 @@
 
                         if (settings.value.buyCharges && user.me.charges.count < user.me.charges.max && user.me.droplets > 500) {
                             var currentCharges = getCharges(user);
-                            var amount = Math.min(10, Math.floor(user.me.droplets / 500), Math.ceil((pixelRemaining - currentCharges) / 30));
+                            var amount = Math.min(10, Math.floor(user.me.droplets / 500), Math.ceil((remainingPixels.value - currentCharges) / 30));
                             if (amount > 0) {
                                 var response = await Request({
                                     method: 'POST',
@@ -457,7 +462,7 @@
                             }
 
                             log(`[${user.username}] Painted: ${data.painted}.`);
-                            pixelRemaining -= data.painted;
+                            remainingPixels.value -= data.painted;
                         }
 
                         await fetchMe(user);
@@ -713,6 +718,9 @@
 
         <div class="grid-item">
             <div class="border rounded p-2 h-100 overflow-y-auto">
+                <div v-if="totalPixels > 0" class="progress mb-2">
+                    <div class="progress-bar text-bg-info" :style="{ width: 100 - (remainingPixels / totalPixels) * 100 + '%' }">{{ (100 - (remainingPixels / totalPixels) * 100).toFixed(2) }}%</div>
+                </div>
                 <div v-for="log in logs.toReversed()" :key="generateId()" class="log-item">{{ log }}</div>
             </div>
         </div>
