@@ -30,15 +30,23 @@ func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 }
 
-func (a *App) SelectImage() (string, error) {
+type FileFilter struct {
+	Pattern string `json:"pattern"`
+	Name    string `json:"name"`
+}
+
+func (a *App) SelectFile(filters []FileFilter) (string, error) {
+	filterOptions := make([]wailsruntime.FileFilter, len(filters))
+	for i, filter := range filters {
+		filterOptions[i] = wailsruntime.FileFilter{
+			Pattern:     filter.Pattern,
+			DisplayName: filter.Name,
+		}
+	}
+
 	return wailsruntime.OpenFileDialog(a.ctx, wailsruntime.OpenDialogOptions{
-		Title: "Select Image",
-		Filters: []wailsruntime.FileFilter{
-			{
-				Pattern:     "*.png;*.jpg;*.jpeg;*.bmp;*.webp",
-				DisplayName: "Images",
-			},
-		},
+		Title:   "Select File",
+		Filters: filterOptions,
 	})
 }
 

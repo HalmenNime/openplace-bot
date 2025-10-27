@@ -1,7 +1,7 @@
 <script setup>
     import { chain, flatMap, sumBy } from 'lodash';
     import { onMounted, onUnmounted, ref, useTemplateRef } from 'vue';
-    import { SelectImage, ReadFile, Request, WriteSettings, ReadSettings, OpenURL } from '../wailsjs/go/main/App';
+    import { SelectFile, ReadFile, Request, WriteSettings, ReadSettings, OpenURL } from '../wailsjs/go/main/App';
     import { alert, generateId, imageDataFromBuffer, input, isUnsignedInteger, numberFormat, randomstring, sleep } from './helpers';
     import { similarColor, dithering, convert, palette } from './palette';
 
@@ -44,7 +44,7 @@
     }
 
     async function selectImage() {
-        const filename = await SelectImage();
+        const filename = await SelectFile([{ pattern: '*.png;*.jpg;*.jpeg;*.bmp;*.webp', name: 'Images' }]);
         if (!filename) return;
 
         settings.value.image = filename;
@@ -531,6 +531,29 @@
         return baseUrl;
     }
 
+    async function migrateUsers() {
+        const filename = await SelectFile([{ pattern: 'settings.json', name: 'Settings' }]);
+        if (!filename) return;
+
+        const buffer = await ReadFile(filename);
+        const raw = atob(buffer);
+        const data = JSON.parse(raw);
+
+        for (const user of data.users) {
+            const existingUser = settings.value.users.find((x) => x.username === user.username);
+            if (existingUser) continue;
+
+            settings.value.users.push({
+                id: user.id,
+                username: user.username,
+                password: user.password,
+                enabled: user.enabled,
+            });
+        }
+
+        await writeSettings();
+    }
+
     onMounted(async () => {
         loading.value = true;
 
@@ -683,10 +706,16 @@
         <div class="grid-item">
             <div class="border rounded p-2 h-100 overflow-y-auto">
                 <div class="d-flex align-items-center justify-content-between gap-2">
-                    <button type="button" class="btn btn-sm btn-primary" @click="addUser" :disabled="loading">
-                        <i class="fa-solid fa-plus"></i>
-                        Add
-                    </button>
+                    <div class="d-flex align-items-center gap-2">
+                        <button type="button" class="btn btn-sm btn-primary" @click="addUser" :disabled="loading">
+                            <i class="fa-solid fa-plus"></i>
+                            Add
+                        </button>
+                        <button type="button" class="btn btn-sm btn-secondary" @click="migrateUsers" :disabled="loading">
+                            <i class="fa-solid fa-file-import"></i>
+                            Migrate
+                        </button>
+                    </div>
                     <div class="text-end">
                         <div :key="userTableKey + '-charges'">
                             Charges: {{ numberFormat(sumBy(settings.users, (x) => getCharges(x))) }} / {{ numberFormat(sumBy(settings.users, (x) => x.me?.charges?.max || 0)) }}

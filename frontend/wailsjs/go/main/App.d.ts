@@ -10,6 +10,6 @@ export function ReadSettings():Promise<any>;
 
 export function Request(arg1:main.RequestData):Promise<main.ResponseData>;
 
-export function SelectImage():Promise<string>;
+export function SelectFile(arg1:Array<main.FileFilter>):Promise<string>;
 
 export function WriteSettings(arg1:string):Promise<void>;

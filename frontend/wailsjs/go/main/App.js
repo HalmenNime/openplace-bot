@@ -18,8 +18,8 @@ export function Request(arg1) {
   return window['go']['main']['App']['Request'](arg1);
 }
 
-export function SelectImage() {
-  return window['go']['main']['App']['SelectImage']();
+export function SelectFile(arg1) {
+  return window['go']['main']['App']['SelectFile'](arg1);
 }
 
 export function WriteSettings(arg1) {

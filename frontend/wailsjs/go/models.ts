@@ -1,5 +1,19 @@
 export namespace main {
 	
+	export class FileFilter {
+	    pattern: string;
+	    name: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new FileFilter(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.pattern = source["pattern"];
+	        this.name = source["name"];
+	    }
+	}
 	export class RequestData {
 	    method: string;
 	    url: string;
