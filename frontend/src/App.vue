@@ -54,6 +54,8 @@
     }
 
     async function loadImage() {
+        if (!settings.value.image) return;
+
         const buffer = await ReadFile(settings.value.image);
         const bytes = Uint8Array.from(atob(buffer), (c) => c.charCodeAt(0));
 
