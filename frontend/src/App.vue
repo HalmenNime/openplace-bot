@@ -197,6 +197,7 @@
             try {
                 await loop();
             } catch (error) {
+                console.error(error);
                 log('Failed to loop: ' + error);
             }
 
@@ -474,6 +475,7 @@
 
                         await fetchMe(user);
                     } catch (error) {
+                        console.error(error);
                         log(error);
                         continue;
                     }
@@ -489,7 +491,7 @@
         await writeSettings();
 
         if (painted === 0) {
-            log(`[${user.username}] No pixels painted.`);
+            log(`No pixels painted.`);
             requestStop();
             return;
         }
