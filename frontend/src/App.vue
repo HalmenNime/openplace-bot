@@ -327,6 +327,7 @@
 
         const promises = [];
         let userCount = settings.value.users.length;
+        let painted = 0;
         for (let i = 0; i < settings.value.requestConcurrent; i++) {
             const promise = new Promise(async (resolve) => {
                 while (userCount > 0 && pixelQueue.length > 0) {
@@ -468,6 +469,7 @@
 
                             log(`[${user.username}] Painted: ${data.painted}.`);
                             remainingPixels.value -= data.painted;
+                            painted += data.painted;
                         }
 
                         await fetchMe(user);
@@ -485,6 +487,12 @@
         await Promise.all(promises);
 
         await writeSettings();
+
+        if (painted === 0) {
+            log(`[${user.username}] No pixels painted.`);
+            requestStop();
+            return;
+        }
     }
 
     async function toggleAllUsers() {
