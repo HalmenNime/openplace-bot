@@ -295,6 +295,8 @@
             }
         }
 
+        if (stopping.value) return;
+
         remainingPixels.value = pixelQueue.length;
 
         if (pixelQueue.length === 0) {
@@ -302,8 +304,6 @@
             requestStop();
             return;
         }
-
-        if (stopping.value) return;
 
         const colorCountMap = new Map();
         for (const pixel of pixelQueue) {
