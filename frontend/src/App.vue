@@ -437,6 +437,8 @@
                             charges -= 1;
                         }
 
+                        if (pixels.length === 0) continue;
+
                         const pixelsByTile = chain(pixels)
                             .groupBy((pixel) => `${pixel.tx}-${pixel.ty}`)
                             .values();
