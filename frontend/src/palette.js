@@ -408,9 +408,9 @@ export function dithering(imageData, usePremiumColors = false) {
                         const neighborIndex = (newY * width + newX) * 4;
 
                         // Cộng lỗi vào pixel lân cận
-                        newData[neighborIndex] = Math.max(0, Math.min(255, newData[neighborIndex] + error.r * factor));
-                        newData[neighborIndex + 1] = Math.max(0, Math.min(255, newData[neighborIndex + 1] + error.g * factor));
-                        newData[neighborIndex + 2] = Math.max(0, Math.min(255, newData[neighborIndex + 2] + error.b * factor));
+                        data[neighborIndex] = Math.max(0, Math.min(255, data[neighborIndex] + error.r * factor));
+                        data[neighborIndex + 1] = Math.max(0, Math.min(255, data[neighborIndex + 1] + error.g * factor));
+                        data[neighborIndex + 2] = Math.max(0, Math.min(255, data[neighborIndex + 2] + error.b * factor));
                     }
                 }
             }
